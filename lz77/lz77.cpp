@@ -12,6 +12,7 @@ using std::endl;
 using std::pair;
 using std::vector;
 using std::setw;
+using std::max;
 
 const int window_size = 5;
 const char eof_symbol = '\0';
@@ -21,6 +22,11 @@ struct Node {
     int length;
     char next;
 };
+
+bool operator== (const Node& lhv, const Node rhv) {
+    return lhv.offset == rhv.offset && lhv.length == rhv.length
+           && lhv.next == rhv.next;
+}
 
 struct BasicStringView {
     int begin;
@@ -35,8 +41,12 @@ Node FindMatching(const string& s, BasicStringView buffer) {
         vector<int> pi;
         pi.reserve(buffer_length);
         pi.push_back(0);
-        // for (int i = buffer.begin; i < start; ++i) {
-        //     cout << setw(4) << '-';
+        // for (int i = 0; i < start; ++i) {
+        //     if (i < buffer.begin) {
+        //         cout << setw(4) << '*';
+        //     } else {
+        //         cout << setw(4) << '-';
+        //     }
         // }
         for (int i = 1; i < buffer_length; ++i) {
             int j = pi.back();
@@ -59,7 +69,7 @@ Node FindMatching(const string& s, BasicStringView buffer) {
             }
             int prev_pi = pi.back();
             pi.push_back(j);
-            if (pi.back() < prev_pi) {
+            if ((i == buffer_length && pi.back() == 0) || (i > buffer_length && pi.back() <= prev_pi)) {
                 break;
             }
             length += 1;
@@ -68,7 +78,7 @@ Node FindMatching(const string& s, BasicStringView buffer) {
         //     cout << setw(4) << p;
         // }
         // cout << endl;
-        if (length > max_length) {
+        if (length >= max_length && length != 0) {
             max_length = length;
             max_offset = buffer.end - start;
         }
@@ -76,16 +86,25 @@ Node FindMatching(const string& s, BasicStringView buffer) {
     return {max_offset, max_length, eof_symbol};
 }
 
-// TODO: Pseudocode
+void Shift(BasicStringView* buffer, int length) {
+    buffer->end += length;
+    buffer->begin = max(0, buffer->end - window_size);
+}
+
 list<Node> Encode(const string& s) {
     list<Node> answer;
     BasicStringView buffer = {0, 0};
     int pos = 0;
     while (pos < s.size()) {
+        // cout << "buffer: " << buffer.begin << " " << buffer.end << "; pos: " << pos << endl;
         Node next_node = FindMatching(s, buffer);
-//         offset, length = findMatching(buffer, pos);
-//         shiftBuffer(length + 1);
-//         answer.push({offset, length, s[pos]});
+        Shift(&buffer, next_node.length + 1);
+        if (pos + next_node.length < s.size()) {
+            next_node.next = s[pos + next_node.length];
+        }
+        pos = buffer.end;
+        // cout << "{" << next_node.offset << ", " << next_node.length << ", " << next_node.next << "}" << endl;
+        answer.push_back(next_node);
     }
     return answer;
 }
@@ -107,28 +126,44 @@ string Decode(const list<Node>& encoded) {
 }
 
 int main() {    
-    const string s = "ababbabbabbabbbbbb";
+    // const string s = "ababbabbabbabbbbbb";
     // const string s = "abacabacabad";
-    const BasicStringView buffer = {0, 4};
-    for (int i = 0; i < s.length(); ++i) {
-        cout << setw(4) << i;
-    }
-    cout << endl;
-    for (char c : s) {        
-        cout << setw(4) << c;
-    }
-    cout << endl;
-    const Node next_node = FindMatching(s, buffer);
-    cout << "{" << next_node.offset << ", " << next_node.length << ", " << next_node.next << "}" << endl;
-
-    // const list<Node> nodes_encoded = {{0, 0, 'a'}, {0, 0, 'b'}, {2, 1, 'c'}, {4, 7, 'd'}, {2, 1, 'c'}, {2, 1, eof_symbol}};
-    // const string string_decoded = "abacabacabadaca";
-    // const string answer_decoded = Decode(nodes_encoded);
-    // cout << answer_decoded << endl;
-    // if (answer_decoded == string_decoded) {
-    //     cout << "OK" << endl;
-    // } else {
-    //     cout << "FAIL" << endl;
+    // const BasicStringView buffer = {0, 4};
+    // for (int i = 0; i < s.length(); ++i) {
+    //     cout << setw(4) << i;
     // }
+    // cout << endl;
+    // for (char c : s) {        
+    //     cout << setw(4) << c;
+    // }
+    // cout << endl;
+    // const Node next_node = FindMatching(s, buffer);
+    // cout << "{" << next_node.offset << ", " << next_node.length << ", " << next_node.next << "}" << endl;
+
+    const list<Node> nodes_encoded = {{0, 0, 'a'}, {0, 0, 'b'}, {2, 1, 'c'}, {4, 7, 'd'}, {2, 1, 'c'}, {2, 1, eof_symbol}};
+    const string string_decoded = "abacabacabadaca";
+    // for (int i = 0; i < string_decoded.length(); ++i) {
+    //     cout << setw(4) << i;
+    // }
+    // cout << endl;
+    // for (char c : string_decoded) {        
+    //     cout << setw(4) << c;
+    // }
+    // cout << endl;
+    const list<Node> answer_encoded = Encode(string_decoded);
+    const string answer_decoded = Decode(nodes_encoded);
+    // cout << answer_decoded << endl;
+    cout << "Encode:" << endl;
+    if (answer_encoded == nodes_encoded) {
+        cout << "OK" << endl;
+    } else {
+        cout << "FAIL" << endl;
+    }
+    cout << "Decode:" << endl;
+    if (answer_decoded == string_decoded) {
+        cout << "OK" << endl;
+    } else {
+        cout << "FAIL" << endl;
+    }
     return 0;
 }
